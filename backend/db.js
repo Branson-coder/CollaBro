@@ -1,4 +1,6 @@
-const { Pool } = require('pg');
+import pg from 'pg'
+
+const { Pool } = pg
 
 const pool = new Pool({
   user: 'postgres',
@@ -6,6 +8,6 @@ const pool = new Pool({
   database: 'smart_task',
   password: 'postgres',
   port: 5432,
-});
+})
 
-module.exports = pool;
+export default pool
