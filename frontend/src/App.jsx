@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import TasksPage from './pages/Tasks'
+import Board from './pages/Board'
 import LoginPage from './pages/Login'
 import { useAuthStore } from './store/authStore'
 
@@ -14,12 +14,12 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/tasks" element={
+        <Route path="/board" element={
           <ProtectedRoute>
-            <TasksPage />
+            <Board />
           </ProtectedRoute>
         } />
-        <Route path="*" element={<Navigate to="/tasks" replace />} />
+        <Route path="*" element={<Navigate to="/board" replace />} />
       </Routes>
     </BrowserRouter>
   )

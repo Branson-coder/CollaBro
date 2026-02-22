@@ -5,9 +5,9 @@ export const useTaskStore = create((set) => ({
   tasks: [],
   loading: false,
 
-  fetchTasks: async () => {
+  fetchTasks: async (teamId) => {
     set({ loading: true })
-    const { data } = await tasksApi.getAll()
+    const { data } = await tasksApi.getAll(teamId)
     set({ tasks: data, loading: false })
   },
 
@@ -24,5 +24,27 @@ export const useTaskStore = create((set) => ({
   deleteTask: async (id) => {
     await tasksApi.delete(id)
     set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }))
+  },
+
+  clearTasks: () => set({ tasks: [], loading: false }),
+
+  applyRemoteCreate: (task) => {
+    set((s) => {
+      const exists = s.tasks.find((t) => t.id === task.id)
+      if (exists) return s
+      return { tasks: [...s.tasks, task] }
+    })
+  },
+
+  applyRemoteUpdate: (task) => {
+    set((s) => ({
+      tasks: s.tasks.map((t) => (t.id === task.id ? task : t)),
+    }))
+  },
+
+  applyRemoteDelete: (taskId) => {
+    set((s) => ({
+      tasks: s.tasks.filter((t) => t.id !== taskId),
+    }))
   },
 }))

@@ -1,6 +1,7 @@
 import express from 'express'
 import pool from '../db.js'
 import auth from '../middleware/auth.js'
+import { io } from '../index.js'
 
 const router = express.Router()
 
@@ -59,7 +60,14 @@ router.post('/', auth, async (req, res) => {
         position || 0,
       ]
     )
-    res.status(201).json(result.rows[0])
+    const task = result.rows[0]
+
+    // Emit to team room if task belongs to a team
+    if (task.team_id) {
+      io.to(`team_${task.team_id}`).emit('task_created', task)
+    }
+
+    res.status(201).json(task)
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Server error' })
@@ -88,7 +96,13 @@ router.put('/:id', auth, async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Task not found or not authorized' })
     }
-    res.json(result.rows[0])
+    const task = result.rows[0]
+
+    if (task.team_id) {
+      io.to(`team_${task.team_id}`).emit('task_updated', task)
+    }
+
+    res.json(task)
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Server error' })
@@ -99,13 +113,19 @@ router.put('/:id', auth, async (req, res) => {
 router.delete('/:id', auth, async (req, res) => {
   try {
     const result = await pool.query(
-      `DELETE FROM tasks WHERE id = $1 AND user_id = $2 RETURNING id`,
+      `DELETE FROM tasks WHERE id = $1 AND user_id = $2 RETURNING *`,
       [req.params.id, req.userId]
     )
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Task not found or not authorized' })
     }
-    res.json({ message: 'Task deleted', id: result.rows[0].id })
+    const task = result.rows[0]
+
+    if (task.team_id) {
+      io.to(`team_${task.team_id}`).emit('task_deleted', task.id)
+    }
+
+    res.json({ message: 'Task deleted', id: task.id })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Server error' })
