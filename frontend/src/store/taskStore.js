@@ -13,6 +13,9 @@ export const useTaskStore = create((set) => ({
 
   createTask: async (payload) => {
     const { data } = await tasksApi.create(payload)
+     if (!payload.team_id) {
+      set((s) => ({ tasks: [...s.tasks, data] }))
+    }
     set((s) => ({ tasks: [...s.tasks, data] }))
   },
 

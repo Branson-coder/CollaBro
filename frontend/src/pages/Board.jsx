@@ -3,30 +3,35 @@ import { DragDropContext } from '@hello-pangea/dnd'
 import { useNavigate } from 'react-router-dom'
 import { useTaskStore } from '../store/taskStore'
 import { useAuthStore } from '../store/authStore'
+import { useTeamStore } from '../store/teamStore'
 import { useSocket } from '../hooks/useSocket'
 import Column from '../components/Column'
+import TeamSidebar from '../components/TeamSidebar'
 
 const STATUSES = ['todo', 'in_progress', 'review', 'done']
 
 export default function Board() {
-  const { tasks, fetchTasks, updateTask, clearTasks } = useTaskStore()
+  const { tasks, fetchTasks, updateTask, createTask, clearTasks } = useTaskStore()
   const { logout, user } = useAuthStore()
+  const { activeTeam, fetchTeams } = useTeamStore()
   const navigate = useNavigate()
 
-  // For now use personal tasks (no teamId)
-  // Once teams UI is built, swap this for the active team's id
-  const teamId = null
+  const teamId = activeTeam?.id || null
   useSocket(teamId)
 
-  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium' })
+  const [newTask, setNewTask]   = useState({ title: '', description: '', priority: 'medium' })
   const [showForm, setShowForm] = useState(false)
-  const { createTask } = useTaskStore()
 
+  // Fetch teams on mount
   useEffect(() => {
-    fetchTasks(teamId)
+    fetchTeams()
   }, [])
 
-  // Group tasks by status
+  // Refetch tasks whenever active team changes
+  useEffect(() => {
+    fetchTasks(teamId)
+  }, [teamId])
+
   const columns = STATUSES.reduce((acc, status) => {
     acc[status] = tasks
       .filter((t) => t.status === status)
@@ -45,7 +50,6 @@ export default function Board() {
     const taskId = parseInt(draggableId)
     const newStatus = destination.droppableId
 
-    // Optimistic update — move it in the UI immediately
     useTaskStore.setState((s) => ({
       tasks: s.tasks.map((t) =>
         t.id === taskId
@@ -54,7 +58,6 @@ export default function Board() {
       ),
     }))
 
-    // Persist to backend
     await updateTask(taskId, { status: newStatus, position: destination.index })
   }
 
@@ -73,68 +76,84 @@ export default function Board() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f1f5f9' }}>
-      {/* Header */}
-      <div style={{
-        background: 'white',
-        borderBottom: '1px solid #e2e8f0',
-        padding: '0 24px',
-        height: 56,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1e293b' }}>
-          FlowTask
-        </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontSize: 13, color: '#64748b' }}>{user?.email}</span>
-          <button
-            onClick={() => setShowForm(true)}
-            style={{
-              background: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: 6,
-              padding: '6px 16px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontSize: 13,
-            }}
-          >
-            + New Task
-          </button>
-          <button
-            onClick={handleLogout}
-            style={{
-              background: 'none',
-              border: '1px solid #e2e8f0',
-              borderRadius: 6,
-              padding: '6px 14px',
-              cursor: 'pointer',
-              fontSize: 13,
-              color: '#64748b',
-            }}
-          >
-            Logout
-          </button>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#f1f5f9' }}>
+      <TeamSidebar />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{
+          background: 'white',
+          borderBottom: '1px solid #e2e8f0',
+          padding: '0 24px',
+          height: 56,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+        }}>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1e293b' }}>
+            {activeTeam ? `# ${activeTeam.name}` : 'My Tasks'}
+          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 13, color: '#64748b' }}>{user?.email}</span>
+            <button
+              onClick={() => setShowForm(true)}
+              style={{
+                background: '#3b82f6', color: 'white',
+                border: 'none', borderRadius: 6,
+                padding: '6px 16px', fontWeight: 600,
+                cursor: 'pointer', fontSize: 13,
+              }}
+            >
+              + New Task
+            </button>
+            <button
+              onClick={handleLogout}
+              style={{
+                background: 'none', border: '1px solid #e2e8f0',
+                borderRadius: 6, padding: '6px 14px',
+                cursor: 'pointer', fontSize: 13, color: '#64748b',
+              }}
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+
+        {/* Board */}
+        <div style={{ padding: 24, overflowX: 'auto', flex: 1 }}>
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', minWidth: 'max-content' }}>
+              {STATUSES.map((status) => (
+                <Column key={status} status={status} tasks={columns[status]} />
+              ))}
+            </div>
+          </DragDropContext>
         </div>
       </div>
 
-      {/* New task form */}
+      {/* New task modal */}
       {showForm && (
-        <div style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 50,
-        }}>
-          <div style={{
-            background: 'white', borderRadius: 12,
-            padding: 28, width: 420,
-            boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-          }}>
-            <h2 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>New Task</h2>
+        <div
+          onClick={() => setShowForm(false)}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 50,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white', borderRadius: 12,
+              padding: 28, width: 420,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+            }}
+          >
+            <h2 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>
+              New Task {activeTeam ? `in ${activeTeam.name}` : ''}
+            </h2>
             <form onSubmit={handleCreate}>
               <input
                 autoFocus
@@ -178,17 +197,6 @@ export default function Board() {
           </div>
         </div>
       )}
-
-      {/* Board */}
-      <div style={{ padding: 24 }}>
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-            {STATUSES.map((status) => (
-              <Column key={status} status={status} tasks={columns[status]} />
-            ))}
-          </div>
-        </DragDropContext>
-      </div>
     </div>
   )
 }
