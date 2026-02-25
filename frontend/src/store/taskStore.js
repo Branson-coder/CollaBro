@@ -25,9 +25,14 @@ export const useTaskStore = create((set) => ({
   },
 
   deleteTask: async (id) => {
+  set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }))
+  try {
     await tasksApi.delete(id)
-    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }))
-  },
+  } catch (err) {
+  
+    console.error('Delete failed', err)
+  }
+},
 
   clearTasks: () => set({ tasks: [], loading: false }),
 
@@ -40,14 +45,17 @@ export const useTaskStore = create((set) => ({
   },
 
   applyRemoteUpdate: (task) => {
-    set((s) => ({
+  set((s) => {
+    const existing = s.tasks.find((t) => t.id === task.id)
+    if (existing && existing.updated_at === task.updated_at) return s
+    return {
       tasks: s.tasks.map((t) => (t.id === task.id ? task : t)),
-    }))
-  },
-
+    }
+  })
+},
   applyRemoteDelete: (taskId) => {
     set((s) => ({
-      tasks: s.tasks.filter((t) => t.id !== taskId),
+      tasks: s.tasks.filter((t) => t.id !== Number(taskId)),
     }))
   },
 }))
