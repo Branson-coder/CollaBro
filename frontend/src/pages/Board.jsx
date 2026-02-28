@@ -7,6 +7,8 @@ import { useTeamStore } from '../store/teamStore'
 import { useSocket } from '../hooks/useSocket'
 import Column from '../components/Column'
 import TeamSidebar from '../components/TeamSidebar'
+import ActivityFeed from '../components/ActivityFeed'
+import { Plus, LogOut, Activity, Hash, UserCircle, Loader2, X } from 'lucide-react'
 
 const STATUSES = ['todo', 'in_progress', 'review', 'done']
 
@@ -21,16 +23,15 @@ export default function Board() {
 
   const [newTask, setNewTask]   = useState({ title: '', description: '', priority: 'medium' })
   const [showForm, setShowForm] = useState(false)
+  const [activityOpen, setActivityOpen] = useState(false)
 
-  // Fetch teams on mount
-  useEffect(() => {
-    fetchTeams()
-  }, [])
+  useEffect(() => { fetchTeams() }, [])
 
-  // Refetch tasks whenever active team changes
   useEffect(() => {
-    fetchTasks(teamId)
-  }, [teamId])
+    if (teamId !== undefined) {
+      fetchTasks(teamId)
+    }
+  }, [teamId, fetchTasks])
 
   const columns = STATUSES.reduce((acc, status) => {
     acc[status] = tasks
@@ -42,14 +43,14 @@ export default function Board() {
   const onDragEnd = async (result) => {
     const { destination, source, draggableId } = result
     if (!destination) return
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) return
+    if (destination.droppableId === source.droppableId && destination.index === source.index) return
 
-    const taskId = parseInt(draggableId)
+    const taskId    = parseInt(draggableId)
     const newStatus = destination.droppableId
+    const task      = tasks.find((t) => t.id === taskId)
+    if (!task) return
 
+    // Optimistic update
     useTaskStore.setState((s) => ({
       tasks: s.tasks.map((t) =>
         t.id === taskId
@@ -58,7 +59,11 @@ export default function Board() {
       ),
     }))
 
-    await updateTask(taskId, { status: newStatus, position: destination.index })
+    await updateTask(taskId, {
+      status:   newStatus,
+      position: destination.index,
+      team_id:  task.team_id,
+    })
   }
 
   const handleCreate = async (e) => {
@@ -76,124 +81,143 @@ export default function Board() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f1f5f9' }}>
+    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+      {/* Team Sidebar */}
       <TeamSidebar />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
-        <div style={{
-          background: 'white',
-          borderBottom: '1px solid #e2e8f0',
-          padding: '0 24px',
-          height: 56,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexShrink: 0,
-        }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1e293b' }}>
-            {activeTeam ? `# ${activeTeam.name}` : 'My Tasks'}
-          </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 13, color: '#64748b' }}>{user?.email}</span>
+        <header className="h-16 flex-shrink-0 bg-white border-b border-slate-200 px-8 flex items-center justify-between z-30">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+              <Hash size={18} />
+            </div>
+            <h2 className="text-lg font-bold text-slate-800 tracking-tight">
+              {activeTeam ? activeTeam.name : 'My Personal Space'}
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full border border-slate-100">
+              <UserCircle size={16} className="text-slate-400" />
+              <span className="text-xs font-semibold text-slate-600">{user?.email}</span>
+            </div>
+
+            <div className="h-6 w-px bg-slate-200 mx-2" />
+
+            <button
+              onClick={() => setActivityOpen((o) => !o)}
+              className={`p-2 rounded-xl border transition-all ${
+                activityOpen 
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-600' 
+                : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600'
+              }`}
+            >
+              <Activity size={20} />
+            </button>
+
             <button
               onClick={() => setShowForm(true)}
-              style={{
-                background: '#3b82f6', color: 'white',
-                border: 'none', borderRadius: 6,
-                padding: '6px 16px', fontWeight: 600,
-                cursor: 'pointer', fontSize: 13,
-              }}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 shadow-lg shadow-indigo-100"
             >
-              + New Task
+              <Plus size={18} />
+              <span>New Task</span>
             </button>
+
             <button
               onClick={handleLogout}
-              style={{
-                background: 'none', border: '1px solid #e2e8f0',
-                borderRadius: 6, padding: '6px 14px',
-                cursor: 'pointer', fontSize: 13, color: '#64748b',
-              }}
+              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
             >
-              Logout
+              <LogOut size={20} />
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* Board */}
-        <div style={{ padding: 24, overflowX: 'auto', flex: 1 }}>
+        {/* Board Area */}
+        <main className="flex-1 overflow-x-auto overflow-y-hidden p-8">
           <DragDropContext onDragEnd={onDragEnd}>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', minWidth: 'max-content' }}>
+            <div className="flex gap-6 h-full min-w-max items-start">
               {STATUSES.map((status) => (
-                <Column key={status} status={status} tasks={columns[status]} />
+                <Column 
+                  key={status} 
+                  status={status} 
+                  tasks={columns[status]} 
+                  className="w-80 flex-shrink-0"
+                />
               ))}
             </div>
           </DragDropContext>
-        </div>
+        </main>
       </div>
 
-      {/* New task modal */}
+      {/* Activity Sidebar overlay logic handled by the component */}
+      <ActivityFeed
+        isOpen={activityOpen}
+        onClose={() => setActivityOpen(false)}
+      />
+
+      {/* New Task Modal */}
       {showForm && (
-        <div
+        <div 
           onClick={() => setShowForm(false)}
-          style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.4)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 50,
-          }}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200"
         >
-          <div
+          <div 
             onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'white', borderRadius: 12,
-              padding: 28, width: 420,
-              boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-            }}
+            className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200"
           >
-            <h2 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>
-              New Task {activeTeam ? `in ${activeTeam.name}` : ''}
-            </h2>
-            <form onSubmit={handleCreate}>
-              <input
-                autoFocus
-                placeholder="Task title"
-                value={newTask.title}
-                onChange={(e) => setNewTask((s) => ({ ...s, title: e.target.value }))}
-                style={{ display: 'block', width: '100%', marginBottom: 12, padding: 10, borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }}
-              />
-              <input
-                placeholder="Description (optional)"
-                value={newTask.description}
-                onChange={(e) => setNewTask((s) => ({ ...s, description: e.target.value }))}
-                style={{ display: 'block', width: '100%', marginBottom: 12, padding: 10, borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }}
-              />
-              <select
-                value={newTask.priority}
-                onChange={(e) => setNewTask((s) => ({ ...s, priority: e.target.value }))}
-                style={{ display: 'block', width: '100%', marginBottom: 20, padding: 10, borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }}
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  style={{ padding: '8px 18px', borderRadius: 6, border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontSize: 13 }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  style={{ padding: '8px 18px', borderRadius: 6, border: 'none', background: '#3b82f6', color: 'white', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
-                >
-                  Create
+            <div className="px-8 pt-8 pb-4">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-black text-slate-800">Create Task</h2>
+                <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-600">
+                  <X size={20} />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleCreate} className="space-y-4">
+                <input
+                  autoFocus
+                  placeholder="What needs to be done?"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask((s) => ({ ...s, title: e.target.value }))}
+                  className="w-full px-5 py-3 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none font-medium text-slate-700 placeholder-slate-400"
+                />
+                <textarea
+                  placeholder="Add details (optional)..."
+                  value={newTask.description}
+                  onChange={(e) => setNewTask((s) => ({ ...s, description: e.target.value }))}
+                  className="w-full px-5 py-3 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none font-medium text-slate-700 placeholder-slate-400 h-24 resize-none"
+                />
+                <div className="relative">
+                  <select
+                    value={newTask.priority}
+                    onChange={(e) => setNewTask((s) => ({ ...s, priority: e.target.value }))}
+                    className="w-full px-5 py-3 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none font-bold text-slate-700 appearance-none"
+                  >
+                    <option value="low">Low Priority</option>
+                    <option value="medium">Medium Priority</option>
+                    <option value="high">High Priority</option>
+                    <option value="critical">Critical Priority</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-3 pt-4 pb-8">
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="flex-1 py-3 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+                  >
+                    Discard
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95"
+                  >
+                    Create Task
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

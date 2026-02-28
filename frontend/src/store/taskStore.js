@@ -12,12 +12,13 @@ export const useTaskStore = create((set) => ({
   },
 
   createTask: async (payload) => {
-    const { data } = await tasksApi.create(payload)
-     if (!payload.team_id) {
-      set((s) => ({ tasks: [...s.tasks, data] }))
-    }
-    set((s) => ({ tasks: [...s.tasks, data] }))
-  },
+  const { data } = await tasksApi.create(payload)
+  set((s) => {
+    const exists = s.tasks.find((t) => t.id === data.id)
+    if (exists) return s
+    return { tasks: [...s.tasks, data] }
+  })
+},
 
   updateTask: async (id, payload) => {
     const { data } = await tasksApi.update(id, payload)

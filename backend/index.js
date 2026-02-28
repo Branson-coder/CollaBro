@@ -6,6 +6,8 @@ import { Server } from 'socket.io'
 import authRoutes from './routes/auth.js'
 import tasksRoutes from './routes/tasks.js'
 import teamsRouter from './routes/teams.js'
+import activityRoutes from './routes/activity.js'
+import { startCleanupJob } from './utils/cleanup.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -24,6 +26,7 @@ app.get('/', (req, res) => res.send('Backend running'))
 app.use('/auth', authRoutes)
 app.use('/tasks', tasksRoutes)
 app.use('/teams', teamsRouter)
+app.use('/activity', activityRoutes)
 
 // Socket.IO connection handler
 io.on('connection', (socket) => {
@@ -46,3 +49,4 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 4000
 httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`))
+startCleanupJob()

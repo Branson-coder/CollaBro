@@ -1,18 +1,30 @@
 import { useState } from 'react'
 import { Draggable } from '@hello-pangea/dnd'
 import { useTaskStore } from '../store/taskStore'
+import { useTeamStore } from '../store/teamStore'
+import { useAuthStore } from '../store/authStore'
 import EditTaskModal from './EditTaskModal'
+import { Calendar, Trash2, GripVertical, AlertCircle, Clock } from 'lucide-react'
 
-const PRIORITY_COLORS = {
-  critical: '#ef4444',
-  high:     '#f97316',
-  medium:   '#eab308',
-  low:      '#22c55e',
+const PRIORITY_THEMES = {
+  critical: { color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100', dot: 'bg-red-500' },
+  high:     { color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100', dot: 'bg-orange-500' },
+  medium:   { color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', dot: 'bg-amber-500' },
+  low:      { color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', dot: 'bg-emerald-500' },
 }
 
 export default function TaskCard({ task, index }) {
   const deleteTask = useTaskStore((s) => s.deleteTask)
+  const myRole     = useTeamStore((s) => s.myRole)
+  const { user }   = useAuthStore()
   const [editing, setEditing] = useState(false)
+
+  // --- Original Logic Restored ---
+  const isViewer = myRole === 'viewer'
+  const isOwnerOrAdmin = ['owner', 'admin'].includes(myRole)
+  const isMyTask = task.user_id === user?.id
+  const canEdit = !isViewer && (isOwnerOrAdmin || isMyTask)
+  const canDelete = !isViewer && (isOwnerOrAdmin || isMyTask)
 
   const handleDelete = async (e) => {
     e.stopPropagation()
@@ -20,96 +32,99 @@ export default function TaskCard({ task, index }) {
     await deleteTask(task.id)
   }
 
+  const handleClick = () => {
+    if (canEdit) setEditing(true)
+  }
+
   const now = new Date()
   const due = task.due_date ? new Date(task.due_date) : null
-  const isOverdue  = due && due < now && task.status !== 'done'
+  const isOverdue = due && due < now && task.status !== 'done'
   const isDueToday = due && due.toDateString() === now.toDateString()
+  
+  const p = PRIORITY_THEMES[task.priority] || PRIORITY_THEMES.low
 
   return (
     <>
-      <Draggable draggableId={String(task.id)} index={index}>
+      <Draggable
+        draggableId={String(task.id)}
+        index={index}
+        isDragDisabled={isViewer}
+      >
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            onClick={() => setEditing(true)}
+            onClick={handleClick}
+            className={`
+              group relative mb-3 rounded-2xl border bg-white/90 backdrop-blur-md
+              transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]
+              ${snapshot.isDragging 
+                ? 'shadow-2xl ring-2 ring-indigo-500/30 rotate-[1.5deg] scale-[1.05] z-50 !cursor-grabbing' 
+                : 'shadow-sm hover:shadow-xl hover:-translate-y-1 border-slate-200 hover:border-indigo-300'}
+              ${isViewer ? 'opacity-80 cursor-default' : 'cursor-grab active:cursor-grabbing'}
+            `}
             style={{
-              background: snapshot.isDragging ? '#f0f4ff' : 'white',
-              border: '1px solid #e2e8f0',
-              borderLeft: `4px solid ${PRIORITY_COLORS[task.priority] || '#94a3b8'}`,
-              borderRadius: 8,
-              padding: '12px 14px',
-              marginBottom: 8,
-              boxShadow: snapshot.isDragging
-                ? '0 8px 24px rgba(0,0,0,0.12)'
-                : '0 1px 3px rgba(0,0,0,0.06)',
-              cursor: 'pointer',
-              position: 'relative',
               ...provided.draggableProps.style,
             }}
           >
-            {/* Delete button */}
-            <button
-              onClick={handleDelete}
-              title="Delete task"
-              style={{
-                position: 'absolute', top: 8, right: 8,
-                background: 'none', border: 'none',
-                cursor: 'pointer', color: '#cbd5e1',
-                fontSize: 16, lineHeight: 1,
-                padding: '0 2px', borderRadius: 4,
-              }}
-              onMouseEnter={(e) => e.target.style.color = '#ef4444'}
-              onMouseLeave={(e) => e.target.style.color = '#cbd5e1'}
-            >
-              ×
-            </button>
+            {/* Top Bar: Priority & Actions */}
+            <div className="flex items-center justify-between p-3 pb-1">
+              <div className="flex items-center gap-2">
+                <GripVertical size={14} className="text-slate-300 group-hover:text-slate-400 transition-colors" />
+                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border shadow-sm ${p.bg} ${p.border}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${p.dot}`} />
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${p.color}`}>
+                    {task.priority}
+                  </span>
+                </div>
+              </div>
 
-            <p style={{
-              margin: 0, fontWeight: 600,
-              fontSize: 14, color: '#1e293b',
-              paddingRight: 20,
-            }}>
-              {task.title}
-            </p>
+              {canDelete && (
+                <button
+                  onClick={handleDelete}
+                  className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
 
-            {task.description && (
-              <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>
-                {task.description}
-              </p>
-            )}
-
-            <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-              <span style={{
-                fontSize: 11, fontWeight: 600,
-                textTransform: 'uppercase',
-                color: PRIORITY_COLORS[task.priority] || '#94a3b8',
-              }}>
-                {task.priority}
-              </span>
-
-              {due && (
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: isOverdue || isDueToday ? 600 : 400,
-                  color: isOverdue ? '#ef4444' : isDueToday ? '#f97316' : '#94a3b8',
-                }}>
-                  {isOverdue  ? '⚠ Overdue' :
-                   isDueToday ? '⏰ Due today' :
-                   `Due ${due.toLocaleDateString()}`}
-                </span>
+            {/* Main Content */}
+            <div className="p-4 pt-2">
+              <h4 className="text-[15px] font-bold text-slate-800 leading-snug group-hover:text-indigo-600 transition-colors">
+                {task.title}
+              </h4>
+              
+              {task.description && (
+                <p className="mt-2 text-sm text-slate-500 line-clamp-2 leading-relaxed font-medium opacity-80">
+                  {task.description}
+                </p>
               )}
 
-              {task.assignee_email && (
-                <span style={{
-                  fontSize: 11, background: '#f1f5f9',
-                  borderRadius: 12, padding: '2px 8px',
-                  color: '#475569', marginLeft: 'auto',
-                }}>
-                  {task.assignee_email}
-                </span>
-              )}
+              {/* Footer: Date & Assignee */}
+              <div className="mt-5 flex items-center justify-between border-t border-slate-50 pt-3">
+                <div className="flex items-center gap-3">
+                  {due && (
+                    <div className={`flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md 
+                      ${isOverdue ? 'bg-red-100 text-red-700' : isDueToday ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-600'}`}>
+                      {isOverdue ? <AlertCircle size={12} /> : isDueToday ? <Clock size={12} /> : <Calendar size={12} />}
+                      {isOverdue ? 'Overdue' : isDueToday ? 'Today' : due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </div>
+                  )}
+                </div>
+
+                {task.assignee_email && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-medium hidden sm:block truncate max-w-[80px]">
+                      {task.assignee_email.split('@')[0]}
+                    </span>
+                    <div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-[10px] text-white font-black shadow-md ring-2 ring-white">
+                      {task.assignee_email[0].toUpperCase()}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
