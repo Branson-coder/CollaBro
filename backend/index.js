@@ -8,9 +8,16 @@ import tasksRoutes from './routes/tasks.js'
 import teamsRouter from './routes/teams.js'
 import activityRoutes from './routes/activity.js'
 import { startCleanupJob } from './utils/cleanup.js'
+import attachmentRoutes from './routes/attachments.js'
+import { fileURLToPath } from 'url'
+import path from 'path'
+
+
 
 const app = express()
 const httpServer = createServer(app)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 
 export const io = new Server(httpServer, {
   cors: {
@@ -27,6 +34,8 @@ app.use('/auth', authRoutes)
 app.use('/tasks', tasksRoutes)
 app.use('/teams', teamsRouter)
 app.use('/activity', activityRoutes)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+app.use('/attachments', attachmentRoutes)
 
 // Socket.IO connection handler
 io.on('connection', (socket) => {

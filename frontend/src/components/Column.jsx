@@ -1,78 +1,104 @@
 import { Droppable } from '@hello-pangea/dnd'
 import TaskCard from './TaskCard'
 
-const COLUMN_STYLES = {
-  todo:        { label: 'To Do',       color: '#94a3b8', bg: '#f8fafc' },
-  in_progress: { label: 'In Progress', color: '#3b82f6', bg: '#eff6ff' },
-  review:      { label: 'Review',      color: '#a855f7', bg: '#faf5ff' },
-  done:        { label: 'Done',        color: '#22c55e', bg: '#f0fdf4' },
+const COLUMN_CONFIG = {
+  todo:        { label: 'To Do',       accent: '#6b7280' },
+  in_progress: { label: 'In Progress', accent: '#3b82f6' },
+  review:      { label: 'Review',      accent: '#f59e0b' },
+  done:        { label: 'Done',        accent: '#22c55e' },
 }
 
 export default function Column({ status, tasks }) {
-  const style = COLUMN_STYLES[status] || { label: status, color: '#94a3b8', bg: '#f8fafc' }
+  const config = COLUMN_CONFIG[status] || COLUMN_CONFIG.todo
 
   return (
-    <div style={{
-      width: 280,
-      flexShrink: 0,
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      {/* Column header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 12,
-        padding: '0 4px',
-      }}>
-        <span style={{
-          width: 10,
-          height: 10,
-          borderRadius: '50%',
-          background: style.color,
-          flexShrink: 0,
-        }} />
-        <span style={{ fontWeight: 700, fontSize: 13, color: '#1e293b' }}>
-          {style.label}
-        </span>
-        <span style={{
-          marginLeft: 'auto',
-          background: '#e2e8f0',
-          borderRadius: 12,
-          padding: '1px 8px',
-          fontSize: 12,
-          color: '#64748b',
-          fontWeight: 600,
-        }}>
-          {tasks.length}
-        </span>
-      </div>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
-      {/* Droppable area */}
-      <Droppable droppableId={status}>
-        {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            style={{
-              background: snapshot.isDraggingOver ? style.bg : 'transparent',
-              borderRadius: 10,
-              padding: 8,
-              minHeight: 200,
-              border: snapshot.isDraggingOver
-                ? `2px dashed ${style.color}`
-                : '2px dashed transparent',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {tasks.map((task, index) => (
-              <TaskCard key={task.id} task={task} index={index} />
-            ))}
-            {provided.placeholder}
-          </div>
-        )}
-      </Droppable>
-    </div>
+        .column-root {
+          width: 272px;
+          flex-shrink: 0;
+          display: flex;
+          flex-direction: column;
+          background: #f5f4f0;
+        }
+
+        .column-header {
+          height: 36px;
+          padding: 0 14px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: #eceae5;
+          border-bottom: 1px solid #d6d3cc;
+        }
+
+        .column-pip {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .column-label {
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 11px;
+          font-weight: 500;
+          color: #4b5563;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          flex: 1;
+        }
+
+        .column-count {
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 11px;
+          color: #9ca3af;
+        }
+
+        .column-drop {
+          flex: 1;
+          min-height: 480px;
+          padding: 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          transition: background 0.15s;
+        }
+
+        .column-drop.dragging-over {
+          background: #eceae5;
+          outline: 2px dashed #d6d3cc;
+          outline-offset: -4px;
+        }
+      `}</style>
+
+      <div className="column-root">
+        <div className="column-header">
+          <span
+            className="column-pip"
+            style={{ background: config.accent }}
+          />
+          <span className="column-label">{config.label}</span>
+          <span className="column-count">{tasks.length}</span>
+        </div>
+
+        <Droppable droppableId={status}>
+          {(provided, snapshot) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className={`column-drop ${snapshot.isDraggingOver ? 'dragging-over' : ''}`}
+            >
+              {tasks.map((task, index) => (
+                <TaskCard key={task.id} task={task} index={index} />
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </div>
+    </>
   )
 }

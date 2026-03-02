@@ -3,28 +3,25 @@ import { Draggable } from '@hello-pangea/dnd'
 import { useTaskStore } from '../store/taskStore'
 import { useTeamStore } from '../store/teamStore'
 import { useAuthStore } from '../store/authStore'
-import EditTaskModal from './EditTaskModal'
-import { Calendar, Trash2, GripVertical, AlertCircle, Clock } from 'lucide-react'
+import TaskDetailModal from './TaskDetailModal'
 
-const PRIORITY_THEMES = {
-  critical: { color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100', dot: 'bg-red-500' },
-  high:     { color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100', dot: 'bg-orange-500' },
-  medium:   { color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', dot: 'bg-amber-500' },
-  low:      { color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', dot: 'bg-emerald-500' },
+const PRIORITY_CONFIG = {
+  critical: { label: 'Critical', color: '#ef4444' },
+  high:     { label: 'High',     color: '#f97316' },
+  medium:   { label: 'Medium',   color: '#eab308' },
+  low:      { label: 'Low',      color: '#22c55e' },
 }
 
 export default function TaskCard({ task, index }) {
   const deleteTask = useTaskStore((s) => s.deleteTask)
   const myRole     = useTeamStore((s) => s.myRole)
   const { user }   = useAuthStore()
-  const [editing, setEditing] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(false)
 
-  // --- Original Logic Restored ---
-  const isViewer = myRole === 'viewer'
+  const isViewer      = myRole === 'viewer'
   const isOwnerOrAdmin = ['owner', 'admin'].includes(myRole)
-  const isMyTask = task.user_id === user?.id
-  const canEdit = !isViewer && (isOwnerOrAdmin || isMyTask)
-  const canDelete = !isViewer && (isOwnerOrAdmin || isMyTask)
+  const isMyTask      = task.user_id === user?.id
+  const canDelete     = !isViewer && (isOwnerOrAdmin || isMyTask)
 
   const handleDelete = async (e) => {
     e.stopPropagation()
@@ -32,19 +29,136 @@ export default function TaskCard({ task, index }) {
     await deleteTask(task.id)
   }
 
-  const handleClick = () => {
-    if (canEdit) setEditing(true)
-  }
-
-  const now = new Date()
-  const due = task.due_date ? new Date(task.due_date) : null
+  const now       = new Date()
+  const due       = task.due_date ? new Date(task.due_date) : null
   const isOverdue = due && due < now && task.status !== 'done'
   const isDueToday = due && due.toDateString() === now.toDateString()
-  
-  const p = PRIORITY_THEMES[task.priority] || PRIORITY_THEMES.low
+
+  const p = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.low
 
   return (
     <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+        .task-card {
+          font-family: 'IBM Plex Sans', sans-serif;
+          background: #ffffff;
+          border-bottom: 1px solid #eceae5;
+          padding: 10px 12px;
+          cursor: pointer;
+          position: relative;
+          transition: background 0.1s;
+          user-select: none;
+        }
+
+        .task-card:hover { background: #fafaf8; }
+
+        .task-card.is-dragging {
+          background: #ffffff;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+          z-index: 50;
+          border: 1px solid #d6d3cc;
+        }
+
+        .task-card.is-viewer { cursor: default; }
+
+        .task-card-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 5px;
+        }
+
+        .task-priority-pip {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 10px;
+          font-weight: 500;
+          color: #9ca3af;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+
+        .task-priority-dot {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .task-delete {
+          opacity: 0;
+          padding: 2px 4px;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          color: #d6d3cc;
+          line-height: 0;
+          transition: opacity 0.15s, color 0.15s;
+        }
+
+        .task-card:hover .task-delete { opacity: 1; }
+        .task-delete:hover { color: #ef4444; }
+
+        .task-title {
+          font-size: 13px;
+          font-weight: 500;
+          color: #1a1a1a;
+          line-height: 1.4;
+          margin: 0 0 2px;
+          overflow: hidden;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+        }
+
+        .task-description {
+          font-size: 11px;
+          color: #9ca3af;
+          line-height: 1.4;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          margin: 0;
+        }
+
+        .task-footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-top: 8px;
+        }
+
+        .task-due {
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 10px;
+          padding: 2px 6px;
+          font-weight: 500;
+        }
+
+        .task-due.normal  { color: #6b7280; background: #f3f4f6; }
+        .task-due.overdue { color: #ef4444; background: #fef2f2; }
+        .task-due.today   { color: #f97316; background: #fff7ed; }
+
+        .task-assignee {
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          background: #1a1a1a;
+          color: #e8e4d9;
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 10px;
+          font-weight: 500;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+      `}</style>
+
       <Draggable
         draggableId={String(task.id)}
         index={index}
@@ -55,83 +169,57 @@ export default function TaskCard({ task, index }) {
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            onClick={handleClick}
-            className={`
-              group relative mb-3 rounded-2xl border bg-white/90 backdrop-blur-md
-              transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]
-              ${snapshot.isDragging 
-                ? 'shadow-2xl ring-2 ring-indigo-500/30 rotate-[1.5deg] scale-[1.05] z-50 !cursor-grabbing' 
-                : 'shadow-sm hover:shadow-xl hover:-translate-y-1 border-slate-200 hover:border-indigo-300'}
-              ${isViewer ? 'opacity-80 cursor-default' : 'cursor-grab active:cursor-grabbing'}
-            `}
-            style={{
-              ...provided.draggableProps.style,
-            }}
+            onClick={() => setDetailOpen(true)}
+            className={`task-card ${snapshot.isDragging ? 'is-dragging' : ''} ${isViewer ? 'is-viewer' : ''}`}
+            style={{ ...provided.draggableProps.style }}
           >
-            {/* Top Bar: Priority & Actions */}
-            <div className="flex items-center justify-between p-3 pb-1">
-              <div className="flex items-center gap-2">
-                <GripVertical size={14} className="text-slate-300 group-hover:text-slate-400 transition-colors" />
-                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border shadow-sm ${p.bg} ${p.border}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${p.dot}`} />
-                  <span className={`text-[10px] font-bold uppercase tracking-wider ${p.color}`}>
-                    {task.priority}
-                  </span>
-                </div>
+            <div className="task-card-top">
+              <div className="task-priority-pip">
+                <span
+                  className="task-priority-dot"
+                  style={{ background: p.color }}
+                />
+                {p.label}
               </div>
 
               {canDelete && (
                 <button
                   onClick={handleDelete}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                  className="task-delete"
+                  aria-label="Delete task"
                 >
-                  <Trash2 size={14} />
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               )}
             </div>
 
-            {/* Main Content */}
-            <div className="p-4 pt-2">
-              <h4 className="text-[15px] font-bold text-slate-800 leading-snug group-hover:text-indigo-600 transition-colors">
-                {task.title}
-              </h4>
-              
-              {task.description && (
-                <p className="mt-2 text-sm text-slate-500 line-clamp-2 leading-relaxed font-medium opacity-80">
-                  {task.description}
-                </p>
-              )}
+            <p className="task-title">{task.title}</p>
 
-              {/* Footer: Date & Assignee */}
-              <div className="mt-5 flex items-center justify-between border-t border-slate-50 pt-3">
-                <div className="flex items-center gap-3">
-                  {due && (
-                    <div className={`flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md 
-                      ${isOverdue ? 'bg-red-100 text-red-700' : isDueToday ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-600'}`}>
-                      {isOverdue ? <AlertCircle size={12} /> : isDueToday ? <Clock size={12} /> : <Calendar size={12} />}
-                      {isOverdue ? 'Overdue' : isDueToday ? 'Today' : due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    </div>
-                  )}
+            {task.description && (
+              <p className="task-description">{task.description}</p>
+            )}
+
+            <div className="task-footer">
+              {due ? (
+                <span className={`task-due ${isOverdue ? 'overdue' : isDueToday ? 'today' : 'normal'}`}>
+                  {isOverdue ? '! ' : ''}{due.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
+                </span>
+              ) : <span />}
+
+              {task.assignee_email && (
+                <div className="task-assignee" title={task.assignee_email}>
+                  {task.assignee_email[0].toUpperCase()}
                 </div>
-
-                {task.assignee_email && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-400 font-medium hidden sm:block truncate max-w-[80px]">
-                      {task.assignee_email.split('@')[0]}
-                    </span>
-                    <div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-[10px] text-white font-black shadow-md ring-2 ring-white">
-                      {task.assignee_email[0].toUpperCase()}
-                    </div>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
         )}
       </Draggable>
 
-      {editing && (
-        <EditTaskModal task={task} onClose={() => setEditing(false)} />
+      {detailOpen && (
+        <TaskDetailModal task={task} onClose={() => setDetailOpen(false)} />
       )}
     </>
   )
