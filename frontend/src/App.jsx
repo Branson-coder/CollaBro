@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Board from './pages/Board'
-import LoginPage from './pages/Login'
+import AuthPage from './pages/AuthPage'
 import { useAuthStore } from './store/authStore'
 
 function ProtectedRoute({ children }) {
@@ -13,7 +13,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={< AuthPage/>} />
         <Route path="/board" element={
           <ProtectedRoute>
             <Board />

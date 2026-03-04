@@ -5,4 +5,5 @@ export const tasksApi = {
   create:  (data)         => axiosClient.post('/tasks', data),
   update:  (id, data)     => axiosClient.put(`/tasks/${id}`, data),
   delete:  (id)           => axiosClient.delete(`/tasks/${id}`),
+  assign:  (id)           => axiosClient.post(`/tasks/${id}/assign`),
 }

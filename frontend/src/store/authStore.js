@@ -5,6 +5,13 @@ export const useAuthStore = create((set) => ({
   user: null,
   token: localStorage.getItem('token') || null,
 
+  register: async (credentials) => {
+    await authApi.register(credentials)
+    const { data } = await authApi.login(credentials)
+    localStorage.setItem('token', data.token)
+    set({ token: data.token, user: data.user })
+  },
+
   login: async (credentials) => {
     const { data } = await authApi.login(credentials)
     localStorage.setItem('token', data.token)

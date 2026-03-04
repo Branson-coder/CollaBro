@@ -9,96 +9,35 @@ const COLUMN_CONFIG = {
 }
 
 export default function Column({ status, tasks }) {
-  const config = COLUMN_CONFIG[status] || COLUMN_CONFIG.todo
+  const { label, accent } = COLUMN_CONFIG[status] || COLUMN_CONFIG.todo
 
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
-
-        .column-root {
-          width: 272px;
-          flex-shrink: 0;
-          display: flex;
-          flex-direction: column;
-          background: #f5f4f0;
-        }
-
-        .column-header {
-          height: 36px;
-          padding: 0 14px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          background: #eceae5;
-          border-bottom: 1px solid #d6d3cc;
-        }
-
-        .column-pip {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          flex-shrink: 0;
-        }
-
-        .column-label {
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 11px;
-          font-weight: 500;
-          color: #4b5563;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          flex: 1;
-        }
-
-        .column-count {
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 11px;
-          color: #9ca3af;
-        }
-
-        .column-drop {
-          flex: 1;
-          min-height: 480px;
-          padding: 8px;
-          display: flex;
-          flex-direction: column;
-          gap: 1px;
-          transition: background 0.15s;
-        }
-
-        .column-drop.dragging-over {
-          background: #eceae5;
-          outline: 2px dashed #d6d3cc;
-          outline-offset: -4px;
-        }
-      `}</style>
-
-      <div className="column-root">
-        <div className="column-header">
-          <span
-            className="column-pip"
-            style={{ background: config.accent }}
-          />
-          <span className="column-label">{config.label}</span>
-          <span className="column-count">{tasks.length}</span>
-        </div>
-
-        <Droppable droppableId={status}>
-          {(provided, snapshot) => (
-            <div
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-              className={`column-drop ${snapshot.isDraggingOver ? 'dragging-over' : ''}`}
-            >
-              {tasks.map((task, index) => (
-                <TaskCard key={task.id} task={task} index={index} />
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
+    <div style={{ width: 272, flexShrink: 0, display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
+      <div style={{ height: 36, padding: '0 14px', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--border-2)', borderBottom: '1px solid var(--border)' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: accent, flexShrink: 0 }} />
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 500, color: 'var(--muted-3)', letterSpacing: '0.06em', textTransform: 'uppercase', flex: 1 }}>{label}</span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted-1)' }}>{tasks.length}</span>
       </div>
-    </>
+
+      <Droppable droppableId={status}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            style={{
+              flex: 1, minHeight: 480, padding: 8,
+              display: 'flex', flexDirection: 'column', gap: 1,
+              background: snapshot.isDraggingOver ? 'var(--border-2)' : 'var(--bg)',
+              outline: snapshot.isDraggingOver ? '2px dashed var(--border)' : 'none',
+              outlineOffset: -4,
+              transition: 'background 0.15s',
+            }}
+          >
+            {tasks.map((task, index) => <TaskCard key={task.id} task={task} index={index} />)}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+    </div>
   )
 }
