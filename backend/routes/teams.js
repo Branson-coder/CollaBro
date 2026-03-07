@@ -54,7 +54,7 @@ router.get('/:teamId', auth, async (req, res) => {
       return res.status(403).json({ error: 'Not a member of this team' })
     }
     const members = await pool.query(
-      `SELECT u.id, u.email, tm.role, tm.joined_at
+      `SELECT u.id, u.email, u.username, tm.role, tm.joined_at
        FROM team_members tm
        JOIN users u ON u.id = tm.user_id
        WHERE tm.team_id = $1
@@ -84,7 +84,9 @@ router.post('/:teamId/invite', auth, async (req, res) => {
     if (role === 'owner') {
       return res.status(400).json({ error: 'Cannot assign owner role via invite' })
     }
-    const user = await pool.query(`SELECT id FROM users WHERE email = $1`, [email])
+    const user = await pool.query(
+      `SELECT id, username FROM users WHERE email = $1`, [email]
+    )
     if (user.rows.length === 0) {
       return res.status(404).json({ error: 'No user found with that email' })
     }

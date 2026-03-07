@@ -9,11 +9,12 @@ const router = express.Router()
 // Helper — fetch a task with assignee_email and assignees array
 async function getTaskWithAssignees(taskId) {
   const result = await pool.query(
-    `SELECT tasks.*, users.email as assignee_email
-     FROM tasks
-     LEFT JOIN users ON users.id = tasks.user_id
-     WHERE tasks.id = $1`,
-    [taskId]
+     `SELECT u.id, u.email, u.username
+      FROM task_assignments ta
+      JOIN users u ON u.id = ta.user_id
+      WHERE ta.task_id = $1
+      ORDER BY ta.assigned_at ASC`,
+      [taskId]
   )
   if (result.rows.length === 0) return null
   const task = result.rows[0]
@@ -44,13 +45,13 @@ router.get('/', auth, async (req, res) => {
         return res.status(403).json({ error: 'Not a member of this team' })
       }
       const result = await pool.query(
-        `SELECT tasks.*, users.email as assignee_email
-         FROM tasks
-         LEFT JOIN users ON users.id = tasks.user_id
-         WHERE tasks.team_id = $1
-         ORDER BY tasks.position ASC, tasks.created_at DESC`,
+        `SELECT tasks.*, users.email as assignee_email, users.username as assignee_username
+        FROM tasks
+        LEFT JOIN users ON users.id = tasks.user_id
+        WHERE tasks.team_id = $1
+        ORDER BY tasks.position ASC, tasks.created_at DESC`,
         [teamId]
-      )
+      ) 
       taskRows = result.rows
     } else {
       const result = await pool.query(
@@ -65,18 +66,18 @@ router.get('/', auth, async (req, res) => {
     const taskIds = taskRows.map((t) => t.id)
     let assigneeMap = {}
     if (taskIds.length > 0) {
-      const assignees = await pool.query(
-        `SELECT ta.task_id, u.id, u.email
-         FROM task_assignments ta
-         JOIN users u ON u.id = ta.user_id
-         WHERE ta.task_id = ANY($1)
-         ORDER BY ta.assigned_at ASC`,
-        [taskIds]
-      )
-      assignees.rows.forEach((row) => {
-        if (!assigneeMap[row.task_id]) assigneeMap[row.task_id] = []
-        assigneeMap[row.task_id].push({ id: row.id, email: row.email })
-      })
+     const assignees = await pool.query(
+      `SELECT ta.task_id, u.id, u.email, u.username
+      FROM task_assignments ta
+      JOIN users u ON u.id = ta.user_id
+      WHERE ta.task_id = ANY($1)
+      ORDER BY ta.assigned_at ASC`,
+      [taskIds]
+    )
+    assignees.rows.forEach((row) => {
+      if (!assigneeMap[row.task_id]) assigneeMap[row.task_id] = []
+      assigneeMap[row.task_id].push({ id: row.id, email: row.email, username: row.username })
+    })
     }
 
     const tasks = taskRows.map((t) => ({ ...t, assignees: assigneeMap[t.id] || [] }))

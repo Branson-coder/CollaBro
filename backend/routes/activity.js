@@ -16,13 +16,13 @@ router.get('/:teamId', auth, async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT al.*, u.email as user_email, t.title as task_title
-       FROM activity_logs al
-       LEFT JOIN users u ON u.id = al.user_id
-       LEFT JOIN tasks t ON t.id = al.task_id
-       WHERE al.team_id = $1
-       ORDER BY al.created_at DESC
-       LIMIT 50`,
+      `SELECT al.*, u.username, u.email as user_email, t.title as task_title
+      FROM activity_logs al
+      LEFT JOIN users u ON u.id = al.user_id
+      LEFT JOIN tasks t ON t.id = al.task_id
+      WHERE al.team_id = $1
+      ORDER BY al.created_at DESC
+      LIMIT 50`,
       [req.params.teamId]
     )
     res.json(result.rows)
