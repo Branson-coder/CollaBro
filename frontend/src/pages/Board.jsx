@@ -9,6 +9,7 @@ import { attachmentsApi } from '../api/attachments.api'
 import Column from '../components/Column'
 import TeamSidebar from '../components/TeamSidebar'
 import ActivityFeed from '../components/ActivityFeed'
+import SearchBar from '../components/SearchBar'
 
 const STATUSES = ['todo', 'in_progress', 'review', 'done']
 const EMPTY_TASK = { title: '', description: '', priority: 'medium', due_date: '' }
@@ -35,18 +36,46 @@ export default function Board() {
   const [submitting, setSubmitting]     = useState(false)
   const [myTasksOnly, setMyTasksOnly]   = useState(false)
   const fileInputRef = useRef(null)
+  const [search, setSearch]   = useState('')
+  const [filters, setFilters] = useState({ priority: '', assignee: '', creator: '', due: '' })
 
   useEffect(() => { fetchTeams() }, [])
   useEffect(() => { if (teamId !== undefined) fetchTasks(teamId) }, [teamId])
 
+  const now = new Date()
+
+  const applyFilters = (taskList) => {
+    return taskList.filter((t) => {
+      if (search) {
+        const q = search.toLowerCase()
+        if (!t.title?.toLowerCase().includes(q) && !t.description?.toLowerCase().includes(q)) return false
+      }
+      if (filters.priority && t.priority !== filters.priority) return false
+      if (filters.assignee && !t.assignees?.some((a) => String(a.id) === filters.assignee)) return false
+      if (filters.creator && String(t.user_id) !== filters.creator) return false
+      if (filters.due) {
+        const due = t.due_date ? new Date(t.due_date) : null
+        if (filters.due === 'none'    && due) return false
+        if (filters.due === 'overdue' && (!due || due >= now)) return false
+        if (filters.due === 'today'   && (!due || due.toDateString() !== now.toDateString())) return false
+        if (filters.due === 'week') {
+          const weekFromNow = new Date(now)
+          weekFromNow.setDate(weekFromNow.getDate() + 7)
+          if (!due || due < now || due > weekFromNow) return false
+        }
+      }
+      if (myTasksOnly && user) {
+        if (!t.assignees?.some((a) => a.id === user.id) && t.user_id !== user.id) return false
+      }
+      return true
+    })
+  }
+
   const columns = STATUSES.reduce((acc, status) => {
-    let filtered = tasks.filter((t) => t.status === status)
-    if (myTasksOnly && user) {
-      filtered = filtered.filter((t) =>
-        t.assignees?.some((a) => a.id === user.id) || t.user_id === user.id
-      )
-    }
-    acc[status] = filtered.sort((a, b) => a.position - b.position)
+    const statusTasks = tasks
+      .filter((t) => t.status === status)
+      .sort((a, b) => a.position - b.position)
+    acc[status] = applyFilters(statusTasks)
     return acc
   }, {})
 
@@ -109,7 +138,12 @@ export default function Board() {
             <button onClick={handleLogout} className="btn-logout">Sign out</button>
           </div>
         </header>
-
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          filters={filters}
+          onFilterChange={setFilters}
+        />
         <main style={{ padding: 32, overflowX: 'auto', flex: 1 }}>
           <DragDropContext onDragEnd={onDragEnd}>
             <div style={{ display: 'flex', gap: 1, alignItems: 'flex-start', minWidth: 'max-content', background: 'var(--border)', border: '1px solid var(--border)' }}>

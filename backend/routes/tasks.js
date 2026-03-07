@@ -6,31 +6,30 @@ import { logActivity } from '../utils/logActivity.js'
 
 const router = express.Router()
 
-// Helper — fetch a task with assignee_email and assignees array
 async function getTaskWithAssignees(taskId) {
+  // Fetch the task itself
   const result = await pool.query(
-     `SELECT u.id, u.email, u.username
-      FROM task_assignments ta
-      JOIN users u ON u.id = ta.user_id
-      WHERE ta.task_id = $1
-      ORDER BY ta.assigned_at ASC`,
-      [taskId]
+    `SELECT tasks.*, users.email as assignee_email, users.username as assignee_username
+     FROM tasks
+     LEFT JOIN users ON users.id = tasks.user_id
+     WHERE tasks.id = $1`,
+    [parseInt(taskId)]
   )
   if (result.rows.length === 0) return null
   const task = result.rows[0]
 
+  // Fetch assignees separately
   const assignees = await pool.query(
-    `SELECT u.id, u.email
+    `SELECT u.id, u.email, u.username
      FROM task_assignments ta
      JOIN users u ON u.id = ta.user_id
      WHERE ta.task_id = $1
      ORDER BY ta.assigned_at ASC`,
-    [taskId]
+    [parseInt(taskId)]
   )
   task.assignees = assignees.rows
   return task
 }
-
 // GET /tasks
 router.get('/', auth, async (req, res) => {
   const { teamId } = req.query
