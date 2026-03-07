@@ -114,7 +114,7 @@ export default function ActivityFeed({ isOpen, onClose }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: 0, fontSize: 12, color: '#1e293b', lineHeight: 1.4 }}>
                     <span style={{ fontWeight: 600 }}>
-                      {log.user_email?.split('@')[0]}
+                      {log.username || log.user_email?.split('@')[0]}
                     </span>
                     {' '}
                     {log.details}

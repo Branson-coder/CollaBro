@@ -64,10 +64,10 @@ export default function TeamSidebar() {
                 const isOwnerRow = m.role === 'owner'
                 return (
                   <div key={m.id} className="sb-member-row">
-                    <div className="sb-member-avatar">{m.email[0].toUpperCase()}</div>
+                    <div className="sb-member-avatar">{(m.username || m.email)[0].toUpperCase()}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--muted-1)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', display: 'block' }}>
-                        {m.email.split('@')[0]}
+                        {m.username || m.email.split('@')[0]}
                         {isSelf && <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted-3)', marginLeft: 4 }}>you</span>}
                       </span>
                     </div>

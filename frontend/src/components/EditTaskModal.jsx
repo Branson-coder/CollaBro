@@ -153,7 +153,7 @@ export default function EditTaskModal({ task, onClose }) {
                         {a.email[0].toUpperCase()}
                       </div>
                       <span style={{ fontSize: 12, color: 'var(--dark)', fontWeight: 500 }}>
-                        {a.email.split('@')[0]}
+                        {a.username || a.email.split('@')[0]}
                         {a.id === user?.id && (
                           <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted-1)', marginLeft: 6 }}>you</span>
                         )}

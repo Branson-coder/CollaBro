@@ -98,7 +98,7 @@ export default function Board() {
             {activeTeam ? activeTeam.name : 'My Tasks'}
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            {user?.email && <span className="header-user">{user.email}</span>}
+            {user?.username || user?.email && <span className="header-user">{user.email}</span>}
             <button onClick={() => setMyTasksOnly((o) => !o)} className={`btn-ghost ${myTasksOnly ? 'active' : ''}`}>
               {myTasksOnly ? '▸ My Tasks' : 'My Tasks'}
             </button>

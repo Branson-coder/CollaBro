@@ -89,7 +89,7 @@ export default function TaskCard({ task, index }) {
                 <div style={{ display: 'flex', gap: 2 }}>
                   {task.assignees.slice(0, 3).map((a) => (
                     <div key={a.id} title={a.email} style={avatarStyle}>
-                      {a.email[0].toUpperCase()}
+                      {(a.username || a.email)[0].toUpperCase()}
                     </div>
                   ))}
                   {task.assignees.length > 3 && (
