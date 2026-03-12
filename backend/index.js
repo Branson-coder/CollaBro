@@ -41,7 +41,6 @@ app.use('/attachments', attachmentRoutes)
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id)
 
-  // Join a team room to receive team-specific events
   socket.on('join_team', (teamId) => {
     socket.join(`team_${teamId}`)
     console.log(`Socket ${socket.id} joined team_${teamId}`)
