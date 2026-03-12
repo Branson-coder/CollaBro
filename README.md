@@ -1,6 +1,6 @@
 # CollaBro
 
-A real-time collaborative Kanban board for managing tasks across groups. Create taskcards, assign tasks, drag and drop cards between columns, and do many other features to provide a smooth workflow in your team. 
+A real-time collaborative full-stack web app for managing tasks across teams. Create taskcards, assign tasks, drag and drop cards across a Kanban style board, and organise a smooth and collaborative team workflow. 
 
 ---
 
